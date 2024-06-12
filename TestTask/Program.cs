@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using TestTask.Services;
+using TestTask.Services.Implementations;
 using TestTask.SqlData;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +11,10 @@ string connection = builder.Configuration.GetConnectionString("PostgreSQLConnect
 builder.Services.AddDbContext<AppDbContext>(context => context.UseNpgsql(connection));
 builder.Services.AddControllers();
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddTransient<ICategoryService, CategoryServiceImpl>();
+builder.Services.AddTransient<IDailyEventService,DailyEventsServiceImpl>();
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(builder =>
