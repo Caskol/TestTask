@@ -26,12 +26,40 @@ namespace TestTask.Controllers
         }
         ~DailyEventsController()
         {
-            connection.CloseAsync();
+            if (connection.State == ConnectionState.Open)
+            {
+                connection.CloseAsync();
+            }
         }
         [HttpGet]
-        public IActionResult GetEvents()
+        public async Task<IActionResult> GetEvents()
         {
-            return Ok(appDbContext.Events); //конечно можно просто написать raw sql запрос, но пусть хоть немного entity framework поработает
+            if (connection.State == ConnectionState.Closed)
+                await connection.OpenAsync();
+            List<DailyEvent> eventsFromDb = new List<DailyEvent>();
+            using (var command = new NpgsqlCommand("SELECT e.id ,e.name,e.date,e.category_id,c.name AS category_name,c.hex_color FROM events e  LEFT JOIN categories c ON e.category_id=c.id\r\n", connection))
+            {
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        DailyEvent dailyEvent = new DailyEvent();
+                        dailyEvent.Id = reader.GetInt32("id");
+                        dailyEvent.Name = reader.GetString("name");
+                        dailyEvent.EventDate= reader.GetDateTime("date");
+                        if (!reader.IsDBNull("category_id"))
+                        {
+                            dailyEvent.CategoryId = reader.GetInt32("category_id");
+                            dailyEvent.Category = new Category();
+                            dailyEvent.Category.Id = reader.GetInt32("category_id");
+                            dailyEvent.Category.Name = reader.GetString("category_name");
+                            dailyEvent.Category.ColorInHex = reader.GetString("hex_color");
+                        }
+                        eventsFromDb.Add(dailyEvent);
+                    }
+                }
+            }
+            return Ok(eventsFromDb);
         }
         [HttpGet("date/{datetime}")]
         public async Task<IActionResult> GetEventByDate(DateTime datetime)
@@ -96,29 +124,28 @@ namespace TestTask.Controllers
                 var nameParam = new NpgsqlParameter("_name", NpgsqlDbType.Varchar, 200)
                 {
                     Direction = ParameterDirection.InputOutput,
-                    Value = dailyEvent.Name ?? ""
+                    Value = dailyEvent.Name
                 };
                 var dateParam = new NpgsqlParameter("_date", NpgsqlDbType.Timestamp)
                 {
                     Direction = ParameterDirection.InputOutput,
-                    Value = dailyEvent?.EventDate ?? DateTime.UnixEpoch
+                    Value = dailyEvent.EventDate
                 };
                 var categoryIdParam = new NpgsqlParameter("_category_id", NpgsqlDbType.Integer)
                 {
                     Direction = ParameterDirection.InputOutput,
-                    Value = dailyEvent.CategoryId ?? 0
+                    Value = dailyEvent.CategoryId.HasValue ? dailyEvent.CategoryId.Value : DBNull.Value
                 };
                 var categoryNameParam = new NpgsqlParameter("_category_name", NpgsqlDbType.Varchar,20)
                 {
                     Direction = ParameterDirection.InputOutput,
-                    Value = dailyEvent.Category?.Name ?? ""
+                    Value = dailyEvent.Category.Name==null ? DBNull.Value : dailyEvent.Category.Name
                 };
                 var categoryColorParam = new NpgsqlParameter("_category_color", NpgsqlDbType.Varchar,7)
                 {
                     Direction = ParameterDirection.InputOutput,
-                    Value = dailyEvent.Category?.ColorInHex ?? ""
+                    Value = dailyEvent.Category.ColorInHex==null ? DBNull.Value : dailyEvent.Category.ColorInHex
                 };
-                //TODO: ffff
                 command.Parameters.Add(idParam);
                 command.Parameters.Add(nameParam);
                 command.Parameters.Add(dateParam);
@@ -134,12 +161,16 @@ namespace TestTask.Controllers
                     dailyEvent.Id = (int)idParam.Value;
                     dailyEvent.Name = nameParam.Value.ToString();
                     dailyEvent.EventDate = (DateTime)dateParam.Value;
-                    if (idParam.Value is not DBNull)
+                    if (categoryIdParam.Value is not DBNull)
                     {
                         dailyEvent.CategoryId = (int)categoryIdParam.Value;
                         dailyEvent.Category.Id = (int)categoryIdParam.Value;
                         dailyEvent.Category.Name = categoryNameParam.Value.ToString();
                         dailyEvent.Category.ColorInHex = categoryColorParam.Value.ToString();
+                    }
+                    else
+                    {
+                        dailyEvent.CategoryId = null;
                     }
                 }
                 catch (InvalidCastException e)

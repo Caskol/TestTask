@@ -1,4 +1,5 @@
-var categories=[], events=[];
+var categories = [], events = [];
+var lastClickedDate;
 
 function Category(id, name, hex_color) {
     this.id = id;
@@ -28,7 +29,7 @@ document.addEventListener("DOMContentLoaded", function () {
             $('#eventList').empty();
             //добавляем в модальное окно конкретного дня html информацию о событиях
             addEventsFromArray(date);
-
+            lastClickedDate=date;
             //отображаем окно
             $('#infoModal').modal('show');
         },
@@ -65,11 +66,18 @@ function addEventsFromArray(eventDate) {
 
     if (eventsFromArray.length > 0) {
         eventsFromArray.forEach(function (event) {
-            $('#eventList').append('<li>' + 'ID события: ' + event.id + '</li>');
-            $('#eventList').append('<li>' + 'Название события: ' + event.name + '</li>');
-            $('#eventList').append('<li>' + 'Дата события: ' + event.date.substring(0, 10) + '</li>');
-            $('#eventList').append('<li>' + 'Категория события: ' + event.category.name + '</li>');
-            $('#eventList').append('<li>' + 'Цвет события ' + '<input type="color" value=' + event.category.hex_color + '></li>');
+            $('#eventList').append('<input type="button" onclick="deleteEvent(' + event.id + ')" value="Удалить это событие"></input>');
+            $('#eventList').append('<input type="button" onclick="editEvent(' + event.id + ')" value="Редактировать это событие"></input>');
+            $('#eventList').append('<li>ID события: ' + event.id + '</li>');
+            $('#eventList').append('<li>Название события: ' + event.name + '</li>');
+            $('#eventList').append('<li>Дата события: ' + event.date.substring(0, 10) + '</li>');
+            if (event.category != null) {
+                $('#eventList').append('<li>Категория события: ' + event.category.name + '</li>');
+                $('#eventList').append('<li>Цвет события ' + '<input type="color" value=' + event.category.hex_color + '></li>');
+            }
+            else {
+                $('#eventList').append('<li>Категория события: Нет категории</li>');
+            }
         });
     } else {
         $('#eventList').append('<li>Событий нет</li>');
@@ -95,9 +103,16 @@ function loadResource(url, successCallback, errorCallback) {
     });
 }
 //Функция для поиска категории в массиве по id
-function findCategoryInArray(id) {
+function findCategoryInArrayById(id) {
     return categories.find((category) => {
         return category.id === id;
+    })
+}
+
+//Функция для поиска категории в массиве по id
+function findCategoryInArrayByName(name) {
+    return categories.find((category) => {
+        return category.name === name;
     })
 }
 //Функция для добавления загруженных с сервиса данных в массив
@@ -105,11 +120,16 @@ function loadEvents(eventsFromQuery) {
     console.log("Ищу ресурсы - события");
     events = [];
     eventsFromQuery.forEach(function (eventFromApi) {
-        let category = findCategoryInArray(eventFromApi.categoryId);
+        if (eventFromApi.categoryId != null) {
+            var category = new Category(eventFromApi.category.id, eventFromApi.category.name, eventFromApi.category.colorInHex);
+        }
+        else {
+            var category = null;
+        }
         let event = new DailyEvent(eventFromApi.id, eventFromApi.name, eventFromApi.eventDate.substring(0, 10), category);
         events.push(event);
     });
-    setBackgroundColorToCells(); //костыль
+    setBackgroundColorToCells(); //обновляем ячейки после каждого поиска событий
 }
 //Функция для добавления загруженных с сервиса данных в массив
 function loadCategories(categoriesFromQuery) {
@@ -124,12 +144,60 @@ function loadCategories(categoriesFromQuery) {
 //Отобразить окно добавления информации
 function displayNewEventWindow() {
     $('#insertBody').empty();
-    $('#insertBody').append('<input type="text" value="Название события" />');
+    $('#insertBody').append('<input type="text" placeholder="Название события" id="eventName"/>');
     categories.forEach(function (category) {
-        $('#insertBody').append('<input type="radio" value="' + category.name + '" id="' + category.name + '"/>');
+        $('#insertBody').append('<div>')
+        $('#insertBody').append('<input type="radio" value="' + category.name + '" id="' + category.name + '" name="category"/>');
         $('#insertBody').append('<label for="' + category.name + '">' + category.name + '</label>');
-    })
+        $('#insertBody').append('</div>')
+    });
+    $('#insertBody').append('<div>')
+    $('#insertBody').append('<input type="radio" value="Без категории" id="null" name="category"/>');
+    $('#insertBody').append('<label for="Без категории">Без категории</label>');
+    $('#insertBody').append('</div>');
     $('#addNewEvent').modal('show');
+}
+
+function createNewEvent() {
+    let eventName = $('#eventName').val();
+    console.log(eventName);
+    let category = $('input[type="radio"]:checked').attr('id');
+    console.log(category);
+    var dataToTransfer;
+    if (category != 'null') {
+        dataToTransfer = {
+            "name": eventName,
+            "eventDate": lastClickedDate.format('YYYY-MM-DD'),
+            "categoryId": findCategoryInArrayByName(category).id
+        };
+    }
+    else {
+        dataToTransfer = {
+            "name": eventName,
+            "eventDate": lastClickedDate.format('YYYY-MM-DD'),
+            "categoryId": null
+        };
+    }
+    console.log(dataToTransfer);
+    $.ajax({
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        url: '/api/events',
+        method: 'POST',
+        dataType: 'json',
+        data: JSON.stringify(dataToTransfer),
+        success: () => {
+            updateData();
+            alert('Добавлено в базу данных');
+
+        },
+        error: () => {
+            alert('Не удалось добавить событие в базу данных');
+        }
+    });
+    
 }
 
 

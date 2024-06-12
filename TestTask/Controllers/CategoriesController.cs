@@ -23,10 +23,34 @@ namespace TestTask.Controllers
             this.appDbContext = appDbContext;
             connection = new NpgsqlConnection(appDbContext.Database.GetConnectionString());
         }
-        [HttpGet]
-        public IActionResult GetCategories()
+        ~CategoriesController() 
         {
-            return Ok(appDbContext.Categories);
+            if (connection.State == ConnectionState.Open)
+            {
+                connection.CloseAsync();
+            }
+        }
+        [HttpGet]
+        public async Task<IActionResult> GetCategories()
+        {
+            if (connection.State == ConnectionState.Closed)
+                await connection.OpenAsync();
+            List<Category> categoriesFromDb = new List<Category>();
+            using (var command = new NpgsqlCommand("SELECT * FROM categories", connection))
+            {
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read()) 
+                    {
+                        Category category = new Category();
+                        category.Id = reader.GetInt32("id");
+                        category.Name = reader.GetString("name");
+                        category.ColorInHex = reader.GetString("hex_color");
+                        categoriesFromDb.Add(category);
+                    }
+                }
+            }
+            return Ok(categoriesFromDb);
         }
 
         [HttpGet("{id}")]
@@ -52,7 +76,8 @@ namespace TestTask.Controllers
 
         private async Task<Category> ExecuteSqlProcedure(string query, int id = 0, Category? category = null)
         {
-            await connection.OpenAsync();
+            if (connection.State == ConnectionState.Closed)
+                await connection.OpenAsync();
             if (category==null)
                 category = new Category();
             using (var command = new NpgsqlCommand(query, connection))
