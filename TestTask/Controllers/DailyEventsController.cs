@@ -99,7 +99,7 @@ namespace TestTask.Controllers
         public async Task<IActionResult> DeleteEvents(int id)
         {
             await ExecuteSqlProcedure("call delete_event(:_id)", id);
-            return Ok();
+            return NoContent();
         }
         [HttpPost]
         public async Task<IActionResult> PostEvents([FromBody] DailyEvent dailyEvent)
@@ -124,7 +124,7 @@ namespace TestTask.Controllers
                 var nameParam = new NpgsqlParameter("_name", NpgsqlDbType.Varchar, 200)
                 {
                     Direction = ParameterDirection.InputOutput,
-                    Value = dailyEvent.Name
+                    Value = dailyEvent.Name==null? DBNull.Value : dailyEvent.Name
                 };
                 var dateParam = new NpgsqlParameter("_date", NpgsqlDbType.Timestamp)
                 {

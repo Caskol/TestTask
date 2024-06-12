@@ -108,3 +108,7 @@ SELECT id,name,hex_color FROM categories WHERE id=_id INTO _id,_name,_hex_color;
 END;
 $$
 LANGUAGE plpgsql;
+
+INSERT INTO categories(name,hex_color) VALUES ('Срочно','#80b6df');
+INSERT INTO categories(name,hex_color) VALUES ('Важно','#f81c1c');
+

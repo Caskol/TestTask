@@ -74,7 +74,7 @@ namespace TestTask.Controllers
             return Ok(await ExecuteSqlProcedure("call insert_category(:_id,:_name, :_hex_color)", default ,category));
         }
 
-        private async Task<Category> ExecuteSqlProcedure(string query, int id = 0, Category? category = null)
+        private async Task<Category> ExecuteSqlProcedure(string query, int? id = null, Category? category = null)
         {
             if (connection.State == ConnectionState.Closed)
                 await connection.OpenAsync();
@@ -85,17 +85,17 @@ namespace TestTask.Controllers
                 var idParam = new NpgsqlParameter("_id", NpgsqlDbType.Integer)
                 {
                     Direction = ParameterDirection.InputOutput,
-                    Value = id
+                    Value = id.HasValue ? id.Value : DBNull.Value
                 };
                 var nameParam = new NpgsqlParameter("_name", NpgsqlDbType.Varchar, 20)
                 {
                     Direction = ParameterDirection.InputOutput,
-                    Value = category?.Name ?? ""
+                    Value = category.Name ?? ""
                 };
                 var colorParam = new NpgsqlParameter("_hex_color", NpgsqlDbType.Varchar, 7)
                 {
                     Direction = ParameterDirection.InputOutput,
-                    Value = category?.ColorInHex ?? ""
+                    Value = category.ColorInHex ?? ""
                 };
                 command.Parameters.Add(idParam);
                 command.Parameters.Add(nameParam);
