@@ -9,6 +9,13 @@ string connection = builder.Configuration.GetConnectionString("PostgreSQLConnect
 builder.Services.AddDbContext<AppDbContext>(context => context.UseNpgsql(connection));
 builder.Services.AddControllers();
 builder.Services.AddControllersWithViews();
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(builder =>
+    {
+        builder.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin();
+    });
+});
 
 var app = builder.Build();
 
@@ -27,10 +34,6 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/");
-
+app.UseCors();
 
 app.Run();

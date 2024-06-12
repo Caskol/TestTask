@@ -4,6 +4,8 @@ using TestTask.Models;
 
 namespace TestTask.Controllers
 {
+    [Controller]
+    [Route("")]
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> _logger;
@@ -17,14 +19,14 @@ namespace TestTask.Controllers
 
         public IActionResult Index()
         {
-            var filePath = Path.Combine(_env.WebRootPath, "index.html");
-            if (System.IO.File.Exists(filePath))
-            {
-                return PhysicalFile(filePath, "text/html");
-            }
-            return null;
+            //var filePath = Path.Combine(_env.WebRootPath, "index.html");
+            //if (System.IO.File.Exists(filePath))
+            //{
+            //    return PhysicalFile(filePath, "text/html");
+            //}
+            return View("index");
         }
-
+        [Route("/error")]
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {

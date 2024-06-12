@@ -24,14 +24,39 @@ namespace TestTask.Controllers
             this.appDbContext = appDbContext;
             connection = new NpgsqlConnection(appDbContext.Database.GetConnectionString());
         }
+        ~DailyEventsController()
+        {
+            connection.CloseAsync();
+        }
         [HttpGet]
         public IActionResult GetEvents()
         {
-            return Ok(appDbContext.Events);
+            return Ok(appDbContext.Events); //конечно можно просто написать raw sql запрос, но пусть хоть немного entity framework поработает
         }
-
+        [HttpGet("date/{datetime}")]
+        public async Task<IActionResult> GetEventByDate(DateTime datetime)
+        {
+            List<int> ids = new List<int>();
+            List<DailyEvent> events = new List<DailyEvent>();
+            string query = $"SELECT id FROM events WHERE date>='{datetime.Date.ToString("yyyy-MM-dd")}' AND date<='{datetime.Date.AddDays(1).ToString("yyyy-MM-dd")}'";
+            NpgsqlCommand sqlCommand = new NpgsqlCommand(query, connection);
+            if (connection.State == ConnectionState.Closed)
+                await connection.OpenAsync();
+            using (NpgsqlDataReader reader = sqlCommand.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    ids.Add(reader.GetInt32("id"));
+                }
+            };
+            foreach (int id in ids){
+                DailyEvent dailyEvent = new DailyEvent();
+                events.Add(await ExecuteSqlProcedure("call get_event(:_id, :_name, :_date, :_category_id, :_category_name, :_category_color)", id, dailyEvent));
+            }
+            return Ok(events);
+        }
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetEvents(int id)
+        public async Task<IActionResult> GetEvent(int id)
         {
             DailyEvent dailyEvent = new DailyEvent();
             await ExecuteSqlProcedure("call get_event(:_id, :_name, :_date, :_category_id, :_category_name, :_category_color)", id, dailyEvent);
@@ -56,7 +81,8 @@ namespace TestTask.Controllers
 
         private async Task<DailyEvent> ExecuteSqlProcedure(string query, int id = 0, DailyEvent? dailyEvent = null)
         {
-            await connection.OpenAsync();
+            if (connection.State == ConnectionState.Closed)
+                await connection.OpenAsync();
             if (dailyEvent==null)
                 dailyEvent = new DailyEvent();
             dailyEvent.Category = new Category();
