@@ -150,9 +150,10 @@ function displayEditEventWindow(id) {
         form = '#insertBody';
     }
     else {
-        form = '#editBody'
+        form = '#editBody';
     }
-    $(form).empty();
+    $('#editBody').empty();
+    $('#insertBody').empty();
     $(form).append('<input type="text" placeholder="Название события" id="eventName"/>');
     categories.forEach(function (category) {
         $(form).append('<div>')
