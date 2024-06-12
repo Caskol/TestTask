@@ -52,7 +52,7 @@ namespace TestTask.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteEvent(int id)
         {
-            var dailyEvent = dailyEventService.DeleteDailyEvent(id);
+            var dailyEvent = await dailyEventService.DeleteDailyEvent(id);
             return NoContent();
         }
         [HttpPost]
