@@ -39,7 +39,7 @@ namespace TestTask.Controllers
         public async Task<IActionResult> PutCategory([FromBody] Category category, int id)
         {
             category.Id = id;
-            category = await categoryService.InsertCategory(category);
+            category = await categoryService.UpdateCategory(category);
             return Ok(category);
         }
         [HttpDelete("{id}")]
